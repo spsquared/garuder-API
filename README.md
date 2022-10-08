@@ -1,2 +1,2 @@
-# montan-API
-Mountain Guarder Bot API
+# garuder-API
+Guarder Bot API (to be supported)

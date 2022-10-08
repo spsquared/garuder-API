@@ -1,0 +1,34 @@
+{
+  "name": "garuder-api",
+  "version": "0.0.0",
+  "description": "Guarder Bot API",
+  "type": "module",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/definitely-nobody-is-here/montan-API.git"
+  },
+  "keywords": [
+    "mountainguarder",
+    "meadowguarder",
+    "nodejs",
+    "javascript"
+  ],
+  "author": "Radioactive64",
+  "license": "GPL-3.0",
+  "bugs": {
+    "url": "https://github.com/definitely-nobody-is-here/montan-API/issues"
+  },
+  "homepage": "https://github.com/definitely-nobody-is-here/montan-API#readme",
+  "dependencies": {
+    "@ygoe/msgpack": "^1.0.3",
+    "crypto": "^1.0.1",
+    "socket.io-client": "^4.5.2"
+  },
+  "devDependencies": {
+    "@types/node": "^18.8.3"
+  }
+}
