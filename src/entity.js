@@ -4,13 +4,13 @@
  * 
  */
 class Entity {
-    id = '';
-    x = 0;
-    y = 0;
-    map = 'None';
+    #id = '';
+    #x = 0;
+    #y = 0;
+    #map = 'None';
 
     constructor(id) {
-        this.id = id;
+        this.#id = id;
     }
 }
 
