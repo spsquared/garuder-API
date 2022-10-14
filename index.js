@@ -7,7 +7,7 @@ import { World } from "./src/world.js";
 /**
  * `GaruderAPI` class allows interfacing between a server that supports the Garuder API
  */
-export class GaruderAPI {
+export class GaruderBot {
     #url;
     #apiConnection;
     maps;
@@ -40,4 +40,3 @@ export class GaruderAPI {
         this.#apiConnection.login(username, password);
     }
 }
-
