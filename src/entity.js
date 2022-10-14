@@ -1,5 +1,9 @@
 // Copyright (C) 2022 Radioactive64
 
+export class EntityManager {
+    
+}
+
 /**
  * 
  */
