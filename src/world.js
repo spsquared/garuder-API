@@ -3,20 +3,19 @@
 import APIConnection from "./connection.js";
 
 /**
- * `World` class represents all maps within a world
+ * `MapManager` class represents all maps within a world
  */
-export class World {
+export class MapManager {
     #apiConnection;
-    #maps;
+    #maps = new Map();
 
     /**
-     * Create new `World`
+     * Create new `MapManager`
      * @param {APIConnection} apiConnection `APIConnection` to host 
      */
     constructor(apiConnection) {
         if (!(apiConnection instanceof APIConnection)) throw new TypeError('"apiConnection" must be an instance of APIConnection');
         this.#apiConnection = apiConnection;
-        this.#maps = new Map();
     }
 
     /**
@@ -25,7 +24,7 @@ export class World {
      */
     async loadMaps(maps) {
         for (let i in maps) {
-            let manager = new MapManager(maps[i], this.#apiConnection);
+            let manager = new World(maps[i], this.#apiConnection);
             await manager.load();
             this.#maps.set(i, manager);
         }
@@ -33,9 +32,9 @@ export class World {
 }
 
 /**
- * `MapManager` class represents and controls a single map
+ * `World` class represents and controls a single map
  */
-class MapManager {
+class World {
     #apiConnection;
     #layers;
     #name = 'World';
@@ -65,7 +64,7 @@ class MapManager {
                     this.#layers[layer] = new Layer(layer);
                 }
                 // load collisions and set to layer
-                let collisions = CollisionGrid.fromArray(rawlayer.chunks ?? rawlayer.data, rawlayer.width, rawlayer.height);
+                let collisions = CollisionGrid.fromArray(rawlayer.chunks ?? rawlayer.data, rawlayer.startx ?? 0, rawlayer.starty ?? 0, rawlayer.width, rawlayer.height);
                 this.#layers[layer].setCollisions(collisions);
             }
         }
@@ -85,7 +84,7 @@ class Layer {
     /**
      * @returns {number} Layer of Layer
      */
-    layer() {
+    get layer() {
         return this.#layer;
     }
     /**
@@ -106,7 +105,7 @@ class Layer {
 }
 
 /**
- * Grid interface representing a 2d grid of numbers
+ * Grid interface representing a 2D grid of numbers of fixed width and height. Has a minimum and maximum value for both x and y.
  */
 class Grid {
     #grid;
@@ -116,11 +115,15 @@ class Grid {
     #ymin = Number.MAX_SAFE_INTEGER;
 
     /**
-     * Create new `Grid` of width and height
+     * Create new `Grid` of set width and height and origin of (x, y)
+     * @param {number} x Origin x of grid
+     * @param {number} y Origin y of grid
      * @param {number} w Width of grid
      * @param {number} h Height of grid
      */
-    constructor(w, h) {
+    constructor(x, y, w, h) {
+        this.#xmin = x;
+        this.#ymin = y;
         this.#width = w;
         this.#height = h;
         this.#grid = [];
@@ -135,13 +138,13 @@ class Grid {
     /**
      * @returns {number} Width of `Grid`
      */
-    width() {
+    get width() {
         return this.#width;
     }
     /**
      * @returns {number} Height of `Grid`
      */
-    height() {
+    get height() {
         return this.#height;
     }
     /**
@@ -152,8 +155,8 @@ class Grid {
      */
     get(x, y) {
         if (!Number.isInteger(x) || !Number.isInteger(y)) throw new TypeError('"x" and "y" must be integers');
-        if (x > this.#width+this.#xmin || y > this.#height+this.#ymin) throw new RangeError(`Position (${x}, ${y}) - internally (${x-this.#xmin}, ${y-this.#ymin}) - out of bounds for CollisionGrid of size <${this.#width}, ${this.#height}>`);
-        return this.#grid[y][x];
+        if (x < this.#xmin || x > this.#width+this.#xmin || y < this.#ymin || y > this.#height+this.#ymin) throw new RangeError(`Position (${x}, ${y}) - internally (${x-this.#xmin}, ${y-this.#ymin}) - out of bounds for Grid of size <${this.#width}, ${this.#height}>`);
+        return this.#grid[y-this.#ymin][x-this.#xmin];
     }
     /**
      * Sets a value within the `Grid`
@@ -162,10 +165,8 @@ class Grid {
      * @param {number} val Value of position
      */
     set(x, y, val) {
-        if (!Number.isInteger(x) || !Number.isInteger(y)) throw new TypeError('"x" and "y" must be integers');
-        if (x > this.#width+Math.min(this.#xmin, x) || y > this.#height+Math.min(this.#ymin, y)) throw new RangeError(`Position (${x}, ${y}) - internally (${x-this.#xmin}, ${y-this.#ymin}) - out of bounds for CollisionGrid of size <${this.#width}, ${this.#height}>`);
-        this.#xmin = Math.min(this.#xmin, x);
-        this.#ymin = Math.min(this.#ymin, y);
+        if (!Number.isInteger(x) || !Number.isInteger(y) || !Number.isInteger(val)) throw new TypeError('"x", "y", and "val" must be integers');
+        if (x < this.#xmin || x > this.#width+this.#xmin || y < this.#ymin || y > this.#height+this.#ymin) throw new RangeError(`Position (${x}, ${y}) - internally (${x-this.#xmin}, ${y-this.#ymin}) - out of bounds for Grid of size <${this.#width}, ${this.#height}>`);
         this.#grid[y-this.#ymin][x-this.#xmin] = val;
     }
 
@@ -175,20 +176,25 @@ class Grid {
      * @returns {Grid} Copy of `Grid` object
      */
     static clone(grid) {
-
+        if (!grid instanceof Grid) throw new TypeError('"grid must be a Grid');
+        const copy = new Grid(grid.#xmin, grid.#ymin, grid.#width, grid.#height);
+        copy.#grid = grid.#grid;
+        return copy;
     }
     /** 
-     * Converts a 1-dimensional array to a 2-dimensional grid of `width` and `height`, returning the resulting `Grid` object
+     * Converts a 1-dimensional array to a 2-dimensional grid of `width` and `height`, returning the resulting `CollisionGrid` object
      * @param {Array.<number>} data Array of integers to convert to a `Grid`
+     * @param {number} x Origin x of output `Grid`
+     * @param {number} y Origin y of output `Grid`
      * @param {number} w Width of output `Grid`
      * @param {number} h Height of output `Grid`
-     * @returns {Grid} Resulting `Grid` object
+     * @returns {CollisionGrid} Resulting `Grid` object
     */
-    static fromArray(data, w, h) {
+    static fromArray(data, x, y, w, h) {
         if (!Array.isArray(data)) throw new TypeError('"data" must be an Array');
         // create new `Grid`
-        const resGrid = new Grid(w, h);
-        // check if chunks or just array
+        const resGrid = new CollisionGrid(x, y, w, h);
+        // check if chunks or just array, then populate grid
         if (typeof data[0] === 'object') {
             for (let rawchunk of data) {
                 for (let i in rawchunk.data) {
@@ -200,8 +206,8 @@ class Grid {
         } else {
             for (let i in data) {
                 let x = (i % w);
-                let y = ~~(i / h);
-                resGrid.set(x, y, rawchunk.data[i]);
+                let y = ~~(i / w);
+                resGrid.set(x, y, data[i]);
             }
         }
         return resGrid;
@@ -209,7 +215,7 @@ class Grid {
 }
 
 /**
- * `CollisionGrid` class
+ * `CollisionGrid` class is an implementation of `Grid`, representing a 2D grid of collision tiles of fixed width and height. Has minimum and maximum values for both x and y.
  */
 class CollisionGrid extends Grid {
     #grid;
@@ -220,11 +226,15 @@ class CollisionGrid extends Grid {
 
     /**
      * Create new `CollisionGrid`
+     * @param {number} x Origin x of grid
+     * @param {number} y Origin y of grid
      * @param {number} w Width of grid
      * @param {number} h Height of grid
      */
-    constructor(w, h) {
+    constructor(x, y, w, h) {
         super(w, h);
+        this.#xmin = x;
+        this.#ymin = y;
         this.#width = w;
         this.#height = h;
         this.#grid = [];
@@ -237,18 +247,6 @@ class CollisionGrid extends Grid {
     }
 
     /**
-     * @returns {number} Width of `CollisionGrid`
-     */
-    width() {
-        return this.#width;
-    }
-    /**
-     * @returns {number} Height of `CollisionGrid`
-     */
-    height() {
-        return this.#height;
-    }
-    /**
      * Gets a value within the `CollisionGrid`
      * @param {number} x X position
      * @param {number} y Y position
@@ -256,35 +254,46 @@ class CollisionGrid extends Grid {
      */
     get(x, y) {
         if (!Number.isInteger(x) || !Number.isInteger(y)) throw new TypeError('"x" and "y" must be integers');
-        if (x > this.#width+this.#xmin || y > this.#height+this.#ymin) throw new RangeError(`Position (${x}, ${y}) - internally (${x-this.#xmin}, ${y-this.#ymin}) - out of bounds for CollisionGrid of size <${this.#width}, ${this.#height}>`);
-        return this.#grid[y][x];
+        if (x < this.#xmin || x > this.#width+this.#xmin || y < this.#ymin || y > this.#height+this.#ymin) throw new RangeError(`Position (${x}, ${y}) - internally (${x-this.#xmin}, ${y-this.#ymin}) - out of bounds for CollisionGrid of size <${this.#width}, ${this.#height}>`);
+        return this.#grid[y-this.#ymin][x-this.#xmin];
     }
     /**
      * Sets a value within the `CollisionGrid`
      * @param {number} x X position
      * @param {number} y Y position
-     * @param {number} val New value of position
+     * @param {number} val New collision identifier of position
      */
     set(x, y, val) {
         if (!Number.isInteger(x) || !Number.isInteger(y)) throw new TypeError('"x" and "y" must be integers');
-        if (x > this.#width+Math.min(this.#xmin, x) || y > this.#height+Math.min(this.#ymin, y)) throw new RangeError(`Position (${x}, ${y}) - internally (${x-this.#xmin}, ${y-this.#ymin}) - out of bounds for CollisionGrid of size <${this.#width}, ${this.#height}>`);
-        this.#xmin = Math.min(this.#xmin, x);
-        this.#ymin = Math.min(this.#ymin, y);
+        if (x < this.#xmin || x > this.#width+this.#xmin || y < this.#ymin || y > this.#height+this.#ymin) throw new RangeError(`Position (${x}, ${y}) - internally (${x-this.#xmin}, ${y-this.#ymin}) - out of bounds for CollisionGrid of size <${this.#width}, ${this.#height}>`);
         this.#grid[y-this.#ymin][x-this.#xmin] = CollisionGrid.mapToCollision(val);
     }
 
+    /**
+     * Creates a clone of a `CollisionGrid`
+     * @param {CollisionGrid} grid `CollisionGrid` object to clone
+     * @returns {CollisionGrid} Copy of `CollisionGrid` object
+     */
+    static clone(grid) {
+        if (!grid instanceof CollisionGrid) throw new TypeError('"grid must be a CollisionGrid');
+        const copy = new CollisionGrid(grid.#xmin, grid.#ymin, grid.#width, grid.#height);
+        copy.#grid = grid.#grid;
+        return copy;
+    }
     /** 
      * Converts a 1-dimensional array to a 2-dimensional grid of `width` and `height`, returning the resulting `CollisionGrid` object
      * @param {Array.<number>} data Array of integers to convert to a `Grid`
+     * @param {number} x Origin x of output `Grid`
+     * @param {number} y Origin y of output `Grid`
      * @param {number} w Width of output `Grid`
      * @param {number} h Height of output `Grid`
      * @returns {CollisionGrid} Resulting `Grid` object
     */
-    static fromArray(data, w, h) {
+    static fromArray(data, x, y, w, h) {
         if (!Array.isArray(data)) throw new TypeError('"data" must be an Array');
         // create new `Grid`
-        const resGrid = new CollisionGrid(w, h);
-        // check if chunks or just array
+        const resGrid = new CollisionGrid(x, y, w, h);
+        // check if chunks or just array, then populate grid
         if (typeof data[0] === 'object') {
             for (let rawchunk of data) {
                 for (let i in rawchunk.data) {

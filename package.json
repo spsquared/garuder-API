@@ -9,7 +9,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/definitely-nobody-is-here/montan-API.git"
+    "url": "git+https://github.com/spsquared/garuder-API.git"
   },
   "keywords": [
     "mountainguarder",
@@ -20,9 +20,9 @@
   "author": "Radioactive64",
   "license": "GPL-3.0",
   "bugs": {
-    "url": "https://github.com/definitely-nobody-is-here/montan-API/issues"
+    "url": "https://github.com/spsquared/garuder-API/issues"
   },
-  "homepage": "https://github.com/definitely-nobody-is-here/montan-API#readme",
+  "homepage": "https://github.com/spsquared/garuder-API#readme",
   "dependencies": {
     "@ygoe/msgpack": "^1.0.3",
     "crypto": "^1.0.1",

@@ -2,7 +2,8 @@
 
 import { io } from 'socket.io-client';
 import { webcrypto } from 'node:crypto';
-import { World } from './world.js';
+import { EntityManager } from './entity.js';
+import { MapManager } from './world.js';
 import http from 'node:http';
 
 /**
@@ -35,8 +36,10 @@ export default class APIConnection {
         this.#socket.emit('requestPublicKey');
 
         // handle disconnections and polling
-        this.#socket.on('disconnect', function() {
-            console.error('Disconnected!');
+        this.#socket.on('disconnect', (reason, description) => {
+            console.error('Disconnected! Reason:');
+            console.error(reason);
+            if (description) console.error(description);
             this.#ready = false;
         });
         this.#socket.on('ping', () => {
@@ -44,12 +47,11 @@ export default class APIConnection {
         });
     }
 
-    // ready and login
     /**
      * Waits until connection is secured
      * @returns {Promise} Promise that resolves when Garuder API connection is established
      */
-    async ready() {
+    get ready() {
         return new Promise((resolve, reject) => {
             let wait = setInterval(() => {
                 if (this.#ready) {
@@ -89,16 +91,25 @@ export default class APIConnection {
      * Load all maps from server
      * @param {World} world `World` object to load into
      */
-    async loadMaps(world) {
-        if (!(world instanceof World)) throw new TypeError('"world" must be an instance of World');
+    async loadMaps(manager) {
+        if (!(manager instanceof MapManager)) throw new TypeError('"manager" must be an instance of MapManager');
         // request all maps
         await new Promise((resolve, reject) => {
             this.#socket.once('mapData', async (maps) => {
-                await world.loadMaps(maps, this);
+                await manager.loadMaps(maps, this);
                 console.log('Loaded maps!');
             });
             this.#socket.emit('requestMapData');
         });
+    }
+
+    /**
+     * Adds an `EntityManager` to listen to the server updateTick event
+     * @param {EntityManager} manager `EntityManager` to register
+     */
+    registerEntityManager (manager) {
+        if (!(manager instanceof EntityManager)) throw new TypeError('"manager" must be an instance of EntityManager');
+        this.#socket.on('updateTick', manager.update);
     }
 
     /**

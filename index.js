@@ -1,8 +1,8 @@
 // Copyright (C) 2022 Radioactive64
 
 import APIConnection from "./src/connection.js";
-import { Player } from './src/entity.js';
-import { World } from "./src/world.js";
+import { EntityManager } from './src/entity.js';
+import { MapManager } from "./src/world.js";
 
 /**
  * `GaruderAPI` class allows interfacing between a server that supports the Garuder API
@@ -11,6 +11,7 @@ export class GaruderBot {
     #url;
     #apiConnection;
     maps;
+    entities;
 
     /**
      * Connect to the Garuder API of a supported game
@@ -19,7 +20,8 @@ export class GaruderBot {
     constructor(url) {
         this.#url = url;
         this.#apiConnection = new APIConnection(this.#url);
-        this.maps = new World(this.#apiConnection);
+        this.maps = new MapManager(this.#apiConnection);
+        this.entities = new EntityManager(this.#apiConnection);
         this.#apiConnection.loadMaps(this.maps);
     }
 
@@ -28,8 +30,8 @@ export class GaruderBot {
      * Waits until connection is secured
      * @returns {Promise} Promise that resolves when Garuder API connection is established
      */
-    ready() {
-        return this.#apiConnection.ready();
+    get ready() {
+        return this.#apiConnection.ready;
     }
     /**
      * Login to the game
